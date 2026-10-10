@@ -10,12 +10,27 @@ use pocketmine\scheduler\ClosureTask;
 
 class Main extends PluginBase {
 
+	/** @return list<string> */
 	private function getExceptionData(): array {
-		return array_merge($this->getConfig()->get("exceptionData", []), [".", ".."]);
+		$configured = $this->getConfig()->get("exceptionData", []);
+		if (!is_array($configured)) {
+			$this->getLogger()->warning("exceptionData must be a list of names. Using an empty list.");
+			return [".", ".."];
+		}
+		$names = [".", ".."];
+		foreach ($configured as $name) {
+			if (is_string($name) && $name !== "") {
+				$names[] = $name;
+			} else {
+				$this->getLogger()->warning("exceptionData contains an invalid name. Ignoring that entry.");
+			}
+		}
+		return $names;
 	}
 
+	/** @param list<string> $deleted */
 	public function deleteMessage(array $deleted): void {
-		$this->getLogger()->info("§fDeleted data (" . count($deleted) . "): §a" . implode("§f,§a ", $deleted));
+		$this->getLogger()->info("§fArchived data (" . count($deleted) . "): §a" . implode("§f,§a ", $deleted));
 	}
 
 	/**
@@ -56,6 +71,11 @@ class Main extends PluginBase {
 			$this->getLogger()->warning("legacy-data-dir is true, please set it to false in the pocketmine.yml");
 			return;
 		}
+		$delaySeconds = $this->getConfig()->get("delayTime", 1);
+		if (!is_int($delaySeconds) || $delaySeconds < 0 || $delaySeconds > 86400) {
+			$this->getLogger()->warning("delayTime must be an integer between 0 and 86400. Using one second.");
+			$delaySeconds = 1;
+		}
 		$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function (): void {
 			$plugins = array_map(
 				function (Plugin $plugin): string {
@@ -71,6 +91,6 @@ class Main extends PluginBase {
 				$this->getExceptionData(),
 				$this
 			));
-		}), $this->getConfig()->get("delayTime", 1) * 20);
+		}), $delaySeconds * 20);
 	}
 }

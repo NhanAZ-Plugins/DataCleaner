@@ -1,10 +1,10 @@
 ---
 name: DataCleaner
-version: 5.0.1
+version: 5.0.2
 main: NhanAZ\DataCleaner\Main
 api: 5.0.0
-website: https://github.com/NhanAZ
-description: Clean up unnecessary data inside plugin_data folder
+website: https://github.com/NhanAZ-Plugins/DataCleaner
+description: Archive unused plugin data in retained backups
 author: NhanAZ
 load: POSTWORLD
 ...

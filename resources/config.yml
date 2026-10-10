@@ -1,9 +1,9 @@
 ---
-# The data names listed below won't be deleted
+# Data with these names stays in plugin_data and is not archived
 # exceptionData: ["ExceptionFolderName1", "ExceptionFolderName2"]
 exceptionData: []
 
-# Will start cleaning after ... seconds
-# Increase this value if the plugins in your server have a long load time
+# Start archiving unused data after this delay in seconds
+# Increase this value if other plugins on your server take longer to load
 delayTime: 1 # Seconds
 ...

@@ -38,8 +38,7 @@ final class Cleaner {
 	}
 
 	/**
-	 * Cleans plugin data while moving deleted entries into a backup directory.
-	 * The backup directory itself is cleared before new entries are moved into it.
+	 * Moves unused plugin data into a separate backup directory for each run.
 	 *
 	 * @param string[] $plugins
 	 * @param string[] $exceptionData
@@ -47,32 +46,48 @@ final class Cleaner {
 	 * @return string[]
 	 */
 	public static function cleanWithBackup(string $pluginDataPath, array $plugins, array $exceptionData, string $backupPath): array {
-		if (!self::clearDirectory($backupPath)) {
-			throw new \RuntimeException("Unable to prepare the backup directory: " . $backupPath);
-		}
 		if (!is_dir($pluginDataPath)) {
 			return [];
 		}
+		$dataRoot = realpath($pluginDataPath);
+		$backupParent = dirname(rtrim($backupPath, DIRECTORY_SEPARATOR));
+		$parentRoot = realpath($backupParent);
+		if ($dataRoot === false || $parentRoot === false || is_link($pluginDataPath) || is_link($backupParent) || is_link($backupPath)
+			|| $parentRoot === $dataRoot || str_starts_with($parentRoot, rtrim($dataRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+			throw new \RuntimeException("Backup directory must be outside plugin_data: " . $backupPath);
+		}
+		if (!is_dir($backupPath) && !mkdir($backupPath, 0755)) {
+			throw new \RuntimeException("Unable to prepare the backup directory: " . $backupPath);
+		}
+		$backupRoot = realpath($backupPath);
+		if ($backupRoot === false || $backupRoot === $dataRoot || str_starts_with($backupRoot, rtrim($dataRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+			throw new \RuntimeException("Backup directory must be outside plugin_data: " . $backupPath);
+		}
+		$runPath = $backupRoot . DIRECTORY_SEPARATOR . gmdate("Ymd-His") . "-" . bin2hex(random_bytes(8));
+		if (!mkdir($runPath, 0755)) {
+			throw new \RuntimeException("Unable to create a new backup directory: " . $runPath);
+		}
 
 		$deleted = [];
-		$backupFolderName = basename(dirname(rtrim($backupPath, DIRECTORY_SEPARATOR)));
 		$directoryIterator = new \DirectoryIterator($pluginDataPath);
 		foreach ($directoryIterator as $fileInfo) {
 			$fileName = $fileInfo->getFilename();
-			// The backup lives inside DataCleaner's own plugin data and must survive this pass.
-			if ($fileName === $backupFolderName) {
+			if (in_array($fileName, $plugins, true)) {
 				continue;
 			}
 
 			$success = self::moveToBackup(
 				$fileInfo,
-				in_array($fileName, $plugins, true),
+				false,
 				$exceptionData,
-				$backupPath
+				$runPath
 			);
 			if ($success) {
 				$deleted[] = $fileName;
 			}
+		}
+		if ($deleted === []) {
+			rmdir($runPath);
 		}
 
 		return $deleted;
@@ -101,6 +116,9 @@ final class Cleaner {
 	 * @return bool true on success or false on failure.
 	 */
 	public static function delete(\DirectoryIterator $fileInfo, bool $justEmpty, array $exceptionData): bool {
+		if ($fileInfo->isLink()) {
+			return false;
+		}
 		if ($fileInfo->isDir()) {
 			return self::deleteFolder($fileInfo, $justEmpty, $exceptionData);
 		} elseif ($fileInfo->isFile()) {
@@ -116,6 +134,9 @@ final class Cleaner {
 	 * @return bool true on success or false on failure.
 	 */
 	public static function deleteFile(\DirectoryIterator $file, array $exceptionData): bool {
+		if ($file->isLink()) {
+			return false;
+		}
 		if (!$file->isFile()) {
 			throw new \InvalidArgumentException($file->getFilename() . " is a " . $file->getType() . " but he must be a file");
 		} elseif (in_array($file->getFilename(), $exceptionData, true)) {
@@ -131,6 +152,9 @@ final class Cleaner {
 	 * @return bool true on success or false on failure.
 	 */
 	public static function deleteFolder(\DirectoryIterator $folder, bool $justEmpty, array $exceptionData): bool {
+		if ($folder->isLink()) {
+			return false;
+		}
 		if (!$folder->isDir()) {
 			throw new \InvalidArgumentException($folder->getFilename() . " is a " . $folder->getType() . " but he must be a folder");
 		} elseif (in_array($folder->getFilename(), $exceptionData, true)) {
@@ -182,6 +206,9 @@ final class Cleaner {
 	 * @param string[] $exceptionData
 	 */
 	private static function canDelete(\DirectoryIterator $fileInfo, bool $justEmpty, array $exceptionData): bool {
+		if ($fileInfo->isLink()) {
+			return false;
+		}
 		if ($fileInfo->isDir()) {
 			if (in_array($fileInfo->getFilename(), $exceptionData, true)) {
 				return false;
@@ -190,6 +217,9 @@ final class Cleaner {
 			foreach (new \DirectoryIterator($fileInfo->getPathname()) as $child) {
 				if ($child->isDot()) {
 					continue;
+				}
+				if ($child->isLink()) {
+					return false;
 				}
 				if ($child->isFile()) {
 					if ($justEmpty || in_array($child->getFilename(), $exceptionData, true)) {

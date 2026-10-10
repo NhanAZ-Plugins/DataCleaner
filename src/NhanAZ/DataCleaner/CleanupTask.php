@@ -12,11 +12,9 @@ final class CleanupTask extends AsyncTask {
 
 	private string $backupPath;
 
-	/** @var string[] */
-	private array $plugins;
+	private string $pluginsJson;
 
-	/** @var string[] */
-	private array $exceptionData;
+	private string $exceptionDataJson;
 
 	/**
 	 * @param string[] $plugins
@@ -25,15 +23,36 @@ final class CleanupTask extends AsyncTask {
 	public function __construct(string $pluginDataPath, string $backupPath, array $plugins, array $exceptionData, Main $plugin) {
 		$this->pluginDataPath = $pluginDataPath;
 		$this->backupPath = $backupPath;
-		$this->plugins = $plugins;
-		$this->exceptionData = $exceptionData;
+		$this->pluginsJson = json_encode(array_values($plugins), JSON_THROW_ON_ERROR);
+		$this->exceptionDataJson = json_encode(array_values($exceptionData), JSON_THROW_ON_ERROR);
 
 		// Plugin instances cannot be serialized into a worker thread.
 		$this->storeLocal("plugin", $plugin);
 	}
 
 	public function onRun(): void {
-		$this->setResult(Cleaner::cleanWithBackup($this->pluginDataPath, $this->plugins, $this->exceptionData, $this->backupPath));
+		$this->setResult(Cleaner::cleanWithBackup(
+			$this->pluginDataPath,
+			self::decodeNames($this->pluginsJson),
+			self::decodeNames($this->exceptionDataJson),
+			$this->backupPath
+		));
+	}
+
+	/** @return list<string> */
+	private static function decodeNames(string $json): array {
+		$decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+		if (!is_array($decoded)) {
+			throw new \UnexpectedValueException("Cleanup task names must be an array");
+		}
+		$names = [];
+		foreach ($decoded as $name) {
+			if (!is_string($name)) {
+				throw new \UnexpectedValueException("Cleanup task names must be strings");
+			}
+			$names[] = $name;
+		}
+		return $names;
 	}
 
 	public function onCompletion(): void {
@@ -41,7 +60,13 @@ final class CleanupTask extends AsyncTask {
 		$plugin = $this->fetchLocal("plugin");
 		$deleted = $this->getResult();
 		if (is_array($deleted)) {
-			$plugin->deleteMessage($deleted);
+			$names = [];
+			foreach ($deleted as $name) {
+				if (is_string($name)) {
+					$names[] = $name;
+				}
+			}
+			$plugin->deleteMessage($names);
 		}
 	}
 
