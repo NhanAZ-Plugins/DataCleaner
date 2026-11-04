@@ -7,9 +7,6 @@ Archive unused Axolotl-PM plugin data in retained backups
 [![License](https://img.shields.io/github/license/NhanAZ-Plugins/DataCleaner)](https://github.com/NhanAZ-Plugins/DataCleaner/blob/master/LICENSE)
 [![Discord](https://img.shields.io/discord/986553214889517088?label=Discord&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/j2X83ujT6c)
 
-## Overview
-
-This repository preserves historical or supporting source material. It is not a current Axolotl-PM plugin release.
 
 ## Requirements and compatibility
 
