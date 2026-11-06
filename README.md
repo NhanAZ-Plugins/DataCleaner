@@ -40,7 +40,7 @@ Invalid `exceptionData` entries cause a warning and are ignored. A malformed lis
 
 ## Development and validation
 
-The [build workflow](.github/workflows/build.yml) tests backup retention, loaded plugin data, exception names and path containment against pinned Axolotl-PM source revisions. It uses [DevTools](https://github.com/NhanAZ/DevTools) to run PHPStan at maximum level, build the PHAR and inspect the artifact. Exact revisions and results are available in [GitHub Actions](https://github.com/NhanAZ-Plugins/DataCleaner/actions).
+The [build workflow](.github/workflows/build.yml) tests backup retention, loaded plugin data, exception names and path containment against pinned Axolotl-PM source revisions. It uses [DevTools](https://github.com/AxolotlBucketLabs/DevTools) to run PHPStan at maximum level, build the PHAR and inspect the artifact. Exact revisions and results are available in [GitHub Actions](https://github.com/NhanAZ-Plugins/DataCleaner/actions).
 
 The tests use disposable directories. They do not run cleanup on a real server's data. Review backup contents before deleting them manually.
 
